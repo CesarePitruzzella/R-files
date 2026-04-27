@@ -1,0 +1,77 @@
+# Lab 1: Exam Lookup Table
+
+This R Markdown document will serve as an exam lookup table for understanding the lecture code provided in files 1.0 and 1.1. It will cover data import, descriptive statistics, graphics, and categorical analysis.
+
+## 1. Data Import
+In this section, we'll explore how to import datasets into R. 
+
+```{r}
+# Load necessary libraries
+library(readr)
+
+# Importing the dataset
+my_data <- read_csv('path/to/your/data.csv')
+```
+
+**Output Interpretation:**  
+After running the code, you should see a data frame that contains the dataset's content. Check the first few rows using:
+
+```{r}
+head(my_data)
+```
+
+## 2. Descriptive Statistics
+Here we will calculate key descriptive statistics to summarize the data.
+
+```{r}
+# Summary statistics
+summary(my_data)
+```
+
+**Output Interpretation:**  
+The output provides the minimum, maximum, mean, median, and quartiles for each numeric variable. These metrics offer a glimpse into the data distribution.
+
+## 3. Graphics
+Graphics are essential for data visualization. In this section, we will create histograms and boxplots.
+
+### 3.1 Histograms
+
+```{r}
+# Creating a histogram for a specific variable
+ggplot(my_data, aes(x=y_variable)) + geom_histogram(binwidth=1) + 
+  labs(title='Histogram of Y Variable', x='Y Variable', y='Frequency')
+```
+
+**Output Interpretation:**  
+The histogram illustrates how the values of 'Y Variable' are distributed within the dataset, giving insights into frequency and outliers. 
+
+### 3.2 Boxplots
+
+```{r}
+# Creating a boxplot for a categorical variable
+ggplot(my_data, aes(x=factor(categorical_variable), y=y_variable)) + geom_boxplot() + 
+  labs(title='Boxplot of Y Variable by Categorical Variable')
+```
+
+**Output Interpretation:**  
+Boxplots display the median, quartiles, and potential outliers for 'Y Variable' grouped by different levels of 'Categorical Variable'.  
+
+## 4. Categorical Analysis
+This section will focus on analyzing categorical data.
+
+```{r}
+# Frequency table for a categorical variable
+freq_table <- table(my_data$categorical_variable)
+print(freq_table)
+```
+
+**Output Interpretation:**  
+The frequency table indicates how many times each category appears in the dataset, providing a quick overview of categorical data.
+
+## Practical Tips for Exam Usage
+- Ensure you have your dataset ready and appropriately referenced in your R scripts.  
+- Familiarize yourself with the R libraries and functions used in this document.  
+- Practice interpreting outputs, as understanding is crucial for success in the exam.  
+
+### Conclusion
+This R Markdown serves as a comprehensive lookup table for the exam, covering vital statistical concepts and visualizations necessary for analyzing data effectively.
