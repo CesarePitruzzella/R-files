@@ -1,0 +1,994 @@
+---
+title: "Guida Completa: Distribuzioni, Test di Ipotesi e ANOVA in R"
+author: "CesarePitruzzella"
+date: "2026-05-05"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    theme: flatly
+---
+
+# 1. Variabili Aleatorie e Distribuzioni
+
+## 1.1 Concetti Fondamentali
+
+Una variabile aleatoria X con distribuzione F(params) può essere descritta attraverso tre funzioni equivalenti:
+
+1. **Funzione di Ripartizione**: $F(t) = P(X \leq t)$
+2. **Funzione Quantile**: inversa generalizzata di F, con dominio [0,1]
+3. **Funzione di Densità**: 
+   - Se X discreta: $f(t) = P(X = t)$
+   - Se X continua: $f(t) = F'(t)$
+
+R fornisce funzioni per calcolare queste tre caratteristiche per molte distribuzioni note.
+
+## 1.2 Convenzione di Naming in R
+
+Per ogni distribuzione in R, le funzioni seguono questa convenzione:
+
+- **d** + nome_distribuzione: Funzione di **D**ensità
+- **p** + nome_distribuzione: Funzione di ripartizione (**P**robability)
+- **q** + nome_distribuzione: Funzione **Q**uantile
+- **r** + nome_distribuzione: Generazione di numeri casuali (**R**andom)
+
+Ad esempio per la distribuzione Normale: `dnorm()`, `pnorm()`, `qnorm()`, `rnorm()`
+
+## 1.3 Distribuzione Normale
+
+### 1.3.1 Come scrivere il codice
+
+La distribuzione normale è caratterizzata da due parametri:
+- **media** (mean): μ
+- **deviazione standard** (sd): σ (ATTENZIONE: non la varianza!)
+
+```{r}
+# Pulizia dell'ambiente
+rm(list = ls())
+cat("\014")
+graphics.off()
+
+# Parametri della distribuzione
+mu <- 2        # media
+sigma2 <- 6    # varianza
+sigma <- sqrt(sigma2)  # deviazione standard (R richiede sd, non varianza!)
+
+# Creiamo un vettore di valori dove valutare le funzioni
+# Useremo l'intervallo [μ - 4σ, μ + 4σ], che copre circa il 99.99% della distribuzione
+t <- seq(mu - 4*sigma, mu + 4*sigma, length.out = 2000)
+
+# Calcoliamo la funzione di DENSITÀ
+f <- dnorm(t, mean = mu, sd = sigma)
+
+# Calcoliamo la funzione di RIPARTIZIONE
+P <- pnorm(t, mean = mu, sd = sigma)
+
+# Calcoliamo i QUANTILI
+# I quantili hanno per dominio [0,1]
+# Evitiamo 0 e 1 per ragioni di stabilità numerica
+q <- seq(1e-6, 1 - 1e-6, length.out = 1000)
+Q <- qnorm(q, mean = mu, sd = sigma)
+```
+
+### 1.3.2 Come interpretare l'output
+
+```{r}
+# Visualizziamo i risultati
+par(mfrow = c(1, 3), mar = c(4, 4, 2, 1))
+
+# GRAFICO 1: Densità
+plot(t, f, col = "red", type = "l", lwd = 4, 
+     main = "Densità della Normale", xlab = "t", ylab = "f(t)")
+abline(v = mu, col = "black", lwd = 2, lty = 2)
+legend("topright", legend = paste("μ =", mu), cex = 0.8)
+
+# GRAFICO 2: Funzione di Ripartizione
+plot(t, P, col = "forestgreen", type = "l", lwd = 2,
+     main = "Funzione di Ripartizione", xlab = "t", ylab = "F(t)")
+abline(h = c(0, 1), col = "black", lwd = 1, lty = 2)
+abline(h = 0.5, col = "blue", lwd = 1, lty = 3)
+
+# GRAFICO 3: Funzione Quantile
+plot(q, Q, col = "blue", type = "l", lwd = 2,
+     main = "Funzione Quantile", xlab = "p", ylab = "Q(p)")
+abline(v = c(0, 1), col = "black", lwd = 1, lty = 2)
+abline(v = 0.5, col = "red", lwd = 1, lty = 3)
+```
+
+### 1.3.3 Come leggere i risultati
+
+**Grafici della Densità:**
+- La curva a campana rappresenta la distribuzione
+- La linea verticale indica la media μ = 2
+- L'area sotto la curva è sempre = 1
+- Circa il 68% dei dati cade entro ±1σ dalla media
+
+**Funzione di Ripartizione:**
+- Inizia da 0 (a sinistra) e termina a 1 (a destra)
+- È una curva monotona crescente a forma di S
+- F(μ) = 0.5 (la mediana è uguale alla media per la normale)
+- F(t) rappresenta P(X ≤ t)
+
+**Funzione Quantile:**
+- È l'inversa della funzione di ripartizione
+- Q(0.5) = μ (il quantile al 50% è la mediana)
+- Q(0.025) e Q(0.975) definiscono l'intervallo di confidenza al 95%
+
+## 1.4 Distribuzione t di Student
+
+### 1.4.1 Come scrivere il codice
+
+La distribuzione t di Student ha un parametro principale:
+- **gradi di libertà** (df): ν
+
+```{r}
+# Parametri
+gradi_di_liberta <- 8
+
+# Vettore di valori
+t_vals <- seq(-6, 6, length.out = 2000)
+
+# Calcoliamo le tre funzioni
+f_t <- dt(t_vals, df = gradi_di_liberta)          # densità
+P_t <- pt(t_vals, df = gradi_di_liberta)          # ripartizione
+q_t <- seq(1e-6, 1 - 1e-6, length.out = 1000)
+Q_t <- qt(q_t, df = gradi_di_liberta)             # quantili
+```
+
+### 1.4.2 Come interpretare l'output
+
+```{r}
+par(mfrow = c(1, 3), mar = c(4, 4, 2, 1))
+
+plot(t_vals, f_t, col = "red", type = "l", lwd = 2,
+     main = "Densità della t", xlab = "t", ylab = "f(t)")
+lines(t_vals, dnorm(t_vals), col = "blue", lwd = 2, lty = 2)
+legend("topright", legend = c("t (df=8)", "Normale"), cex = 0.8)
+
+plot(t_vals, P_t, col = "forestgreen", type = "l", lwd = 2,
+     main = "Funzione di Ripartizione della t", xlab = "t", ylab = "F(t)")
+abline(h = c(0, 1), col = "black", lwd = 1, lty = 2)
+
+plot(q_t, Q_t, col = "blue", type = "l", lwd = 2,
+     main = "Quantile della t", xlab = "p", ylab = "Q(p)")
+```
+
+### 1.4.3 Come leggere i risultati
+
+**Caratteristiche della distribuzione t:**
+- Ha code più pesanti della normale (leptocurtica)
+- Converge alla normale quando i gradi di libertà aumentano
+- È simmetrica attorno a 0
+- Usata quando la varianza della popolazione è sconosciuta
+- Più gradi di libertà → più simile alla normale
+
+---
+
+# 2. Esplorazione Multivariata
+
+## 2.1 Caricamento e Preparazione dei Dati
+
+```{r, message=FALSE}
+library(tidyverse)
+library(GGally)
+library(rgl)
+
+# Carichiamo i dati
+dati <- read.csv("appendiceA.txt", sep = ";")
+
+# Visualizziamo la struttura
+str(dati)
+
+# Rimuoviamo colonne inutili
+dati$X <- dati$Paziente <- NULL
+
+# Convertiamo al tipo categorico
+dati$Sesso <- factor(dati$Sesso)
+
+str(dati)
+```
+
+## 2.2 Grafici Preliminari: plot()
+
+### 2.2.1 Come scrivere il codice
+
+```{r}
+# La funzione plot() su un data.frame genera una matrice di scatter plot
+plot(dati)
+```
+
+### 2.2.2 Come leggere i risultati
+
+La matrice di plot mostra:
+- **Diagonale**: distribuzioni univariate di ciascuna variabile
+- **Fuori diagonale**: relazioni bivariate tra variabili
+- **Osservazione**: notiamo correlazione positiva tra peso e pressione
+
+## 2.3 Grafici Avanzati: ggpairs()
+
+### 2.3.1 Come scrivere il codice
+
+```{r, fig.height=8, fig.width=8}
+# ggpairs fornisce una visualizzazione più ricca e informativa
+ggpairs(dati, aes(alpha = 0.4, color = Sesso))
+```
+
+### 2.3.2 Come leggere i risultati
+
+**Struttura del grafico:**
+
+1. **Diagonale principale**:
+   - Per variabili numeriche: densità stratificate per genere (colori diversi)
+   - Per variabili categoriche: barplot con conteggi per categoria
+
+2. **Triangolo inferiore** (Scatter plot):
+   - Relazioni bivariate tra variabili
+   - Colorati per genere
+   - Mostrano la direzione e forza della relazione
+
+3. **Triangolo superiore** (Correlazioni):
+   - Contiene i risultati dei test di correlazione di Pearson
+   - Numeretto nero: correlazione per l'intera popolazione
+   - Numeri colorati: correlazioni separate per genere
+   - Asterischi indicano significatività statistica:
+     - `***`: p < 0.001 (MOLTO significativo)
+     - `**`: p < 0.01 (molto significativo)
+     - `*`: p < 0.05 (significativo)
+     - `.`: p < 0.1 (leggermente significativo)
+     - Niente: non significativo
+
+4. **Colonna più a destra**:
+   - Boxplot che confrontano variabili numeriche tra i due generi
+
+5. **Riga più in basso**:
+   - Istogrammi che confrontano la distribuzione tra i due generi
+
+## 2.4 Calcolo della Correlazione
+
+### 2.4.1 Come scrivere il codice
+
+```{r}
+# Test di correlazione di Pearson tra due variabili
+cor.test(dati$Peso, dati$Colesterolo, method = "pearson")
+
+# Test di correlazione per sottopopolazioni
+cor.test(dati$Peso[dati$Sesso == 'F'], 
+         dati$Colesterolo[dati$Sesso == 'F'], 
+         method = "pearson")
+```
+
+### 2.4.2 Come leggere l'output
+
+```
+Pearson's product-moment correlation
+
+data:  dati$Peso and dati$Colesterolo
+t = 3.5, df = 310, p-value = 0.0005
+alternative hypothesis: true correlation is not equal to 0
+95 percent confidence interval:
+ 0.10 0.27
+sample estimates:
+  cor 
+0.188 
+```
+
+**Interpretazione:**
+- **cor**: correlazione campionaria = 0.188 (positiva, ma debole)
+- **p-value**: 0.0005 < 0.05 → correlazione statisticamente significativa
+- **Intervallo di confidenza 95%**: [0.10, 0.27]
+
+## 2.5 Matrici di Covarianza e Correlazione
+
+### 2.5.1 Come scrivere il codice
+
+```{r}
+# Matrice di covarianza
+cov(dati[, -4])  # Escludiamo la 4a colonna (Sesso, categorica)
+
+# Matrice di correlazione
+cor(dati[, -4])
+```
+
+### 2.5.2 Come leggere i risultati
+
+La matrice di correlazione è:
+- Simmetrica (r_ij = r_ji)
+- Con 1 sulla diagonale (correlazione di una variabile con se stessa)
+- Valori in [-1, 1]:
+  - Vicino a 1: correlazione positiva forte
+  - Vicino a 0: correlazione debole/assente
+  - Vicino a -1: correlazione negativa forte
+
+## 2.6 Visualizzazione 3D
+
+### 2.6.1 Come scrivere il codice
+
+```{r, eval=FALSE}
+library(rgl)
+
+# Assegniamo colori per genere
+colors <- as.numeric(dati$Sesso)  # 1=F, 2=M
+
+# Plot 3D
+plot3d(dati$Peso, dati$Colesterolo, dati$Pressione, col = colors)
+```
+
+### 2.6.2 Come leggere i risultati
+
+Il grafico 3D mostra tre variabili simultaneamente, permettendo di visualizzare cluster e pattern multivariati non osservabili in 2D.
+
+---
+
+# 3. Test di Normalità
+
+## 3.1 Perché Testare la Normalità?
+
+Molti test statistici (t-test, ANOVA) richiedono l'ipotesi di normalità dei dati. È quindi importante verificarla prima di procedere.
+
+## 3.2 Strumento 1: Istogramma vs Densità Teorica
+
+### 3.2.1 Come scrivere il codice
+
+```{r}
+# Estraiamo i dati sul colesterolo
+col <- dati$Colesterolo
+
+# Calcoliamo media e deviazione standard campionari
+mu_hat <- mean(col)
+sd_hat <- sd(col)
+
+# Creiamo una sequenza di valori per la curva teorica
+t_seq <- seq(min(col), max(col), length.out = 1000)
+f_teorica <- dnorm(t_seq, mean = mu_hat, sd = sd_hat)
+
+# Disegniamo l'istogramma e sovrapponiamo la densità
+hist(col, breaks = 15, col = "gold", probability = TRUE,
+     main = "Istogramma vs Densità Normale Teorica",
+     xlab = "Colesterolo", ylab = "Densità")
+lines(t_seq, f_teorica, col = "red", lwd = 2)
+legend("topright", legend = c("Densità osservata", "Densità N(μ,σ²)"), 
+       col = c("gold", "red"), lwd = c(NA, 2), fill = c("gold", NA))
+```
+
+### 3.2.2 Come leggere i risultati
+
+**Se l'istogramma e la curva rossa coincidono bene**: forte evidenza di normalità
+**Se divergono significativamente**: i dati non sono normali (asimmetria, code pesanti, ecc.)
+
+## 3.3 Strumento 2: Q-Q Plot (Quantile-Quantile Plot)
+
+### 3.3.1 Come scrivere il codice
+
+```{r}
+# Q-Q plot
+qqnorm(col, main = "Q-Q Plot: Colesterolo")
+qqline(col, col = "red", lwd = 2)
+```
+
+### 3.3.2 Come leggere i risultati
+
+- **Asse X**: quantili teorici della distribuzione normale standard
+- **Asse Y**: quantili osservati nei dati
+- **Se i punti giacciono sulla retta rossa**: i dati sono normali
+- **Se i punti si discostano dalla retta**:
+  - Deviazione in basso a sinistra → coda sinistra più pesante
+  - Deviazione in alto a destra → coda destra più pesante
+  - Forma ad S → asimmetria
+
+## 3.4 Strumento 3: Test di Shapiro-Wilk
+
+### 3.4.1 Come scrivere il codice
+
+```{r}
+# Test di Shapiro-Wilk (valido per n < 5000)
+shapiro.test(col)
+```
+
+### 3.4.2 Come leggere l'output
+
+```
+Shapiro-Wilk normality test
+
+data:  col
+W = 0.99, p-value = 0.72
+```
+
+### 3.4.3 Interpretazione del risultato
+
+**Ipotesi del test:**
+- H₀: i dati provengono da una distribuzione normale
+- H₁: i dati NON provengono da una distribuzione normale
+
+**Regola decisionale:**
+- **p-value > 0.05**: NON rifiutiamo H₀ → possiamo assumere normalità ✓
+- **p-value ≤ 0.05**: rifiutiamo H₀ → i dati non sono normali ✗
+
+Nel nostro esempio: p-value = 0.72 > 0.05 → **accettiamo l'ipotesi di normalità**
+
+---
+
+# 4. Test di Ipotesi sulla Media di una Singola Popolazione
+
+## 4.1 Concetti Fondamentali
+
+Un test di ipotesi ha la seguente struttura:
+- **H₀** (ipotesi nulla): affermazione di cui vogliamo testare la validità
+- **H₁** (ipotesi alternativa): quello che vogliamo dimostrare
+- **Statistica test**: misura di discrepanza tra dati osservati e H₀
+- **p-value**: probabilità di osservare dati almeno altrettanto estremi se H₀ fosse vera
+
+## 4.2 t-test (Popolazione Normale)
+
+### 4.2.1 Come scrivere il codice: Test Unilatero a Sinistra
+
+Scenario: Un medico sostiene che i pazienti hanno in media colesterolo < 200
+
+```{r}
+# Dati
+col_data <- dati$Colesterolo
+mu_0 <- 200
+
+# Calcoli preliminari
+n <- length(col_data)
+media_camp <- mean(col_data)
+sd_camp <- sd(col_data)
+
+# Statistica test
+t_stat <- (media_camp - mu_0) / sqrt(sd_camp^2 / n)
+
+# p-value (test unilatero a SINISTRA)
+# P(T_{n-1} <= t_stat)
+pval_left <- pt(t_stat, df = n - 1)
+
+cat("Test unilatero a SINISTRA\n")
+cat("H₀: μ ≥ 200 vs H₁: μ < 200\n")
+cat("Media campionaria:", media_camp, "\n")
+cat("Statistica test:", t_stat, "\n")
+cat("p-value:", pval_left, "\n")
+```
+
+### 4.2.2 Come leggere i risultati: Test Unilatero a Sinistra
+
+```
+Test unilatero a SINISTRA
+H₀: μ ≥ 200 vs H₁: μ < 200
+Media campionaria: 209.5
+Statistica test: 3.2
+p-value: 0.9994
+```
+
+**Interpretazione:**
+- p-value = 0.9994 > 0.05 → **NON rifiutiamo H₀**
+- I dati NON forniscono evidenza che il colesterolo sia < 200
+- Anzi, la media osservata è 209.5 > 200
+
+### 4.2.3 Test Unilatero a Destra
+
+Scenario: Un medico sostiene che i pazienti hanno in media colesterolo > 200
+
+```{r}
+# p-value (test unilatero a DESTRA)
+# P(T_{n-1} >= t_stat)
+pval_right <- 1 - pt(t_stat, df = n - 1)
+
+cat("Test unilatero a DESTRA\n")
+cat("H₀: μ ≤ 200 vs H₁: μ > 200\n")
+cat("p-value:", pval_right, "\n")
+```
+
+### 4.2.4 Test Bilatero
+
+Scenario: Vogliamo testare se il colesterolo medio è diverso da 200
+
+```{r}
+# p-value (test BILATERO)
+# P(|T_{n-1}| >= |t_stat|)
+pval_two <- 2 * (1 - pt(abs(t_stat), df = n - 1))
+
+cat("Test BILATERO\n")
+cat("H₀: μ = 200 vs H₁: μ ≠ 200\n")
+cat("p-value:", pval_two, "\n")
+```
+
+### 4.2.5 Utilizzo della Funzione t.test()
+
+R fornisce la funzione `t.test()` che automatizza questi calcoli:
+
+```{r}
+# Alternativamente, usiamo la funzione t.test()
+t.test(dati$Colesterolo, mu = 200, alternative = "less")      # unilatero sx
+t.test(dati$Colesterolo, mu = 200, alternative = "greater")   # unilatero dx
+t.test(dati$Colesterolo, mu = 200, alternative = "two.sided") # bilatero
+```
+
+### 4.2.6 Intervallo di Confidenza per la Media
+
+```{r}
+# Intervallo di confidenza al 90% per la media del colesterolo
+alpha <- 0.1
+quantile_t <- qt(1 - alpha/2, df = n - 1)
+
+IC_lower <- media_camp - quantile_t / sqrt(n) * sd_camp
+IC_upper <- media_camp + quantile_t / sqrt(n) * sd_camp
+
+cat("Intervallo di confidenza al", (1-alpha)*100, "%\n")
+cat("IC = [", IC_lower, ",", IC_upper, "]\n")
+
+# Uso alternativo: t.test fornisce direttamente l'IC
+t.test(dati$Colesterolo, conf.level = 1 - alpha)
+```
+
+## 4.3 z-test (Popolazione Non Normale, Campioni Numerosi)
+
+Quando i dati non sono normali ma il campione è grande (n > 30), il Teorema del Limite Centrale garantisce che la media campionaria è approssimativamente normale. Usiamo `pnorm` e `qnorm` al posto di `pt` e `qt`.
+
+### 4.3.1 Come scrivere il codice
+
+```{r}
+# Testiamo se il peso medio è 157 libbre
+peso_data <- dati$Peso
+mu_0_peso <- 157
+
+n_peso <- length(peso_data)
+media_peso <- mean(peso_data)
+sd_peso <- sd(peso_data)
+
+# Statistica test
+z_stat <- (media_peso - mu_0_peso) * sqrt(n_peso) / sd_peso
+
+# p-value (test BILATERO)
+pval_z <- 2 * (1 - pnorm(abs(z_stat)))
+
+cat("z-test BILATERO\n")
+cat("H₀: μ = 157 vs H₁: μ ≠ 157\n")
+cat("Media campionaria:", media_peso, "\n")
+cat("Statistica test:", z_stat, "\n")
+cat("p-value:", pval_z, "\n")
+```
+
+### 4.3.2 Intervallo di Confidenza
+
+```{r}
+# Intervallo di confidenza al 99%
+alpha_z <- 0.01
+quantile_z <- qnorm(1 - alpha_z/2)
+
+IC_z_lower <- media_peso - quantile_z / sqrt(n_peso) * sd_peso
+IC_z_upper <- media_peso + quantile_z / sqrt(n_peso) * sd_peso
+
+cat("Intervallo di confidenza al 99%\n")
+cat("IC = [", IC_z_lower, ",", IC_z_upper, "]\n")
+```
+
+---
+
+# 5. Confronto tra Medie di Popolazioni Indipendenti
+
+## 5.1 Scenario: Colesterolo nei Maschi vs Femmine
+
+Vogliamo testare:
+- **H₀**: μ_F = μ_M (il colesterolo medio è uguale tra i due sessi)
+- **H₁**: μ_F ≠ μ_M (il colesterolo medio è diverso tra i due sessi)
+
+### 5.1.1 Come scrivere il codice: Estrazione dei Dati
+
+```{r}
+# Estraiamo i dati per genere
+col_uomini <- dati$Colesterolo[dati$Sesso == "M"]
+col_donne <- dati$Colesterolo[dati$Sesso == "F"]
+
+# Statistica descrittiva
+cat("UOMINI:\n")
+cat("  n =", length(col_uomini), "\n")
+cat("  media =", mean(col_uomini), "\n")
+cat("  sd =", sd(col_uomini), "\n\n")
+
+cat("DONNE:\n")
+cat("  n =", length(col_donne), "\n")
+cat("  media =", mean(col_donne), "\n")
+cat("  sd =", sd(col_donne), "\n")
+```
+
+## 5.2 Verifica delle Ipotesi
+
+### 5.2.1 Normalità in Ogni Sottopopolazione
+
+```{r}
+# Test di Shapiro-Wilk per ogni gruppo
+cat("Test di normalità:\n")
+cat("UOMINI:\n")
+print(shapiro.test(col_uomini))
+cat("\nDONNE:\n")
+print(shapiro.test(col_donne))
+```
+
+### 5.2.2 Uguaglianza delle Varianze: Test di Fisher
+
+```{r}
+# Test di Fisher (F-test) per uguaglianza delle varianze
+# H₀: σ²_M = σ²_F vs H₁: σ²_M ≠ σ²_F
+var.test(col_uomini, col_donne)
+```
+
+**Come leggere il risultato:**
+- Se **p-value > 0.05**: varianze sono uguali → usare `var.equal = TRUE`
+- Se **p-value ≤ 0.05**: varianze sono diverse → usare `var.equal = FALSE`
+
+## 5.3 t-test per Due Campioni Indipendenti
+
+### 5.3.1 Caso: Varianze Uguali
+
+```{r}
+# Caso a varianze UGUALI
+result_equal_var <- t.test(col_donne, col_uomini, 
+                           mu = 0, 
+                           var.equal = TRUE,
+                           alternative = "two.sided")
+print(result_equal_var)
+```
+
+### 5.3.2 Come leggere l'output
+
+```
+Two Sample t-test
+
+data:  col_donne and col_uomini
+t = -1.8, df = 310, p-value = 0.07
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ -6.2  0.3
+sample estimates:
+mean of x mean of y 
+   205.0    208.1 
+```
+
+**Interpretazione:**
+- **t-statistic**: -1.8 (misura di discrepanza tra i due campioni)
+- **df**: 310 (gradi di libertà)
+- **p-value**: 0.07 > 0.05 → NON rifiutiamo H₀
+- **Conclusione**: NON c'è evidenza che il colesterolo medio sia diverso tra i due sessi al livello 5%
+
+### 5.3.3 Caso: Varianze Diverse (Welch t-test)
+
+```{r}
+# Caso a varianze DIVERSE
+result_unequal_var <- t.test(col_donne, col_uomini,
+                             mu = 0,
+                             var.equal = FALSE,  # Welch t-test
+                             alternative = "two.sided")
+print(result_unequal_var)
+```
+
+### 5.3.4 Calcolo Manuale
+
+```{r}
+# Calcolo manuale (per comprensione)
+n_F <- length(col_donne)
+n_M <- length(col_uomini)
+mean_F <- mean(col_donne)
+mean_M <- mean(col_uomini)
+s2_F <- var(col_donne)
+s2_M <- var(col_uomini)
+
+# Varianza pooled
+s2_p <- ((n_F - 1) * s2_F + (n_M - 1) * s2_M) / (n_F + n_M - 2)
+sp <- sqrt(s2_p)
+
+# Statistica test
+t_manual <- (mean_F - mean_M) / (sp * sqrt(1/n_F + 1/n_M))
+
+# p-value
+pval_manual <- 2 * (1 - pt(abs(t_manual), df = n_F + n_M - 2))
+
+cat("Calcolo manuale:\n")
+cat("t-statistic:", t_manual, "\n")
+cat("p-value:", pval_manual, "\n")
+```
+
+---
+
+# 6. ANOVA One-Way (Analisi della Varianza Univariata)
+
+## 6.1 Concetti Fondamentali
+
+L'ANOVA permette di confrontare le medie di **più di 2 gruppi** simultaneamente.
+
+**Modello teorico:**
+- Abbiamo g gruppi (fattore con g livelli)
+- Ogni gruppo ha una media μⱼ (j = 1,...,g)
+- Parametrizzazione: μⱼ = μ + τⱼ, con τ₁ = 0 (vincolo di identificabilità)
+- Modello: Xⱼᵢ = μ + τⱼ + εⱼᵢ, dove εⱼᵢ ~ N(0, σ²)
+
+**Ipotesi del test:**
+- **H₀**: τⱼ = 0 per ogni j (tutte le medie di gruppo sono uguali)
+- **H₁**: ∃ j: τⱼ ≠ 0 (almeno una media di gruppo è diversa)
+
+## 6.2 Esempio Pratico: Dataset Chickwts
+
+### 6.2.1 Caricamento e Esplorazione
+
+```{r}
+# Dataset sui pesi dei polli in funzione del tipo di nutrimento
+dati_polli <- chickwts
+str(dati_polli)
+
+# Visualizziamo il dataset
+head(dati_polli)
+
+# Conteggio delle osservazioni per gruppo
+table(dati_polli$feed)
+```
+
+### 6.2.2 Visualizzazione Preliminare
+
+```{r}
+# Boxplot per visualizzare le distribuzioni per gruppo
+boxplot(dati_polli$weight ~ dati_polli$feed,
+        main = "Peso dei Polli per Tipo di Nutrimento",
+        xlab = "Tipo di Nutrimento",
+        ylab = "Peso (g)",
+        col = "lightblue")
+```
+
+**Come leggere il boxplot:**
+- **Box**: contiene il 50% centrale dei dati (Q1 a Q3)
+- **Linea dentro il box**: mediana
+- **Whiskers**: estensioni fino ai dati non anomali
+- **Punti isolati**: eventuali outlier
+- Se i box non si sovrappongono → potenziale differenza tra i gruppi
+
+## 6.3 Verifica delle Ipotesi
+
+### 6.3.1 Normalità in Ogni Gruppo
+
+```{r}
+# Test di Shapiro-Wilk per ogni gruppo
+tapply(dati_polli$weight, dati_polli$feed, shapiro.test)
+```
+
+**Interpretazione:**
+`tapply()` applica una funzione (qui `shapiro.test`) ai dati di una variabile quantitativa stratificati per i livelli di una variabile qualitativa.
+
+Se tutti i p-value > 0.05, possiamo assumere normalità in ogni gruppo ✓
+
+### 6.3.2 Omogeneità delle Varianze: Test di Bartlett
+
+```{r}
+# Test di Bartlett per uguaglianza delle varianze
+bartlett.test(dati_polli$weight ~ dati_polli$feed)
+```
+
+**Interpretazione:**
+- **H₀**: tutte le varianze sono uguali σ²₁ = σ²₂ = ... = σ²ₘ
+- Se **p-value > 0.05**: varianze omogenee, possiamo usare ANOVA standard ✓
+- Se **p-value ≤ 0.05**: varianze diverse, occorre trasformazione o test alternativo
+
+## 6.4 Esecuzione dell'ANOVA
+
+### 6.4.1 Come scrivere il codice
+
+```{r}
+# Esecuzione dell'ANOVA
+anova_polli <- aov(weight ~ feed, data = dati_polli)
+
+# Visualizzazione del risultato
+summary(anova_polli)
+```
+
+### 6.4.2 Come leggere l'output
+
+```
+            Df Sum Sq Mean Sq F value   Pr(>F)    
+feed         5 231129  46226    15.36 6.43e-11 ***
+Residuals   66 198555   3008                      
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+**Spiegazione colonna per colonna:**
+
+| Colonna | Significato |
+|---------|------------|
+| **Df** | Gradi di libertà. feed: g-1 = 5 (6 gruppi). Residuals: n-g = 66 |
+| **Sum Sq** | Somma dei quadrati. SQ_between=231129, SQ_within=198555 |
+| **Mean Sq** | Quadrati medi. MQ_between=46226, MQ_within=3008 |
+| **F value** | Statistica F = MQ_between/MQ_within = 46226/3008 = 15.36 |
+| **Pr(>F)** | p-value = P(F_{5,66} ≥ 15.36) = 6.43e-11 ≈ 0 |
+
+**Interpretazione:**
+- **p-value ≈ 0 << 0.05**: rifiutiamo H₀
+- **Conclusione**: c'è **evidenza molto forte** che il tipo di nutrimento influenzi significativamente il peso medio dei polli
+- Almeno uno dei sei tipi di nutrimento produce un peso medio diverso dagli altri
+
+### 6.4.3 Estrazione dei Coefficienti
+
+```{r}
+# Visualizziamo i coefficienti stimati
+anova_polli$coefficients
+
+# Media di ogni gruppo
+tapply(dati_polli$weight, dati_polli$feed, mean)
+```
+
+**Interpretazione della parametrizzazione:**
+- `(Intercept)` = μ̂ + τ̂₁: il primo gruppo ha τ̂₁ = 0 per vincolo
+- Esempio: se Intercept = 258.9, significa che questo è il peso medio del primo gruppo (casein)
+- Gli altri coefficienti τ̂ⱼ rappresentano la **differenza rispetto al primo gruppo**
+- Esempio: se il secondo coefficiente = 15.3, il secondo gruppo ha media = 258.9 + 15.3 = 274.2
+
+## 6.5 Stima della Varianza Comune
+
+```{r}
+# Stima di σ² dal residuo dell'ANOVA
+sigma2_hat <- sum(anova_polli$residuals^2) / anova_polli$df.residual
+sigma_hat <- sqrt(sigma2_hat)
+
+cat("Varianza stimata σ² =", sigma2_hat, "\n")
+cat("Deviazione standard σ =", sigma_hat, "\n")
+```
+
+## 6.6 Confronti Multipli Post-Hoc
+
+Dopo aver rifiutato H₀ nell'ANOVA, vogliamo sapere **quali coppie di gruppi sono effettivamente diverse**.
+
+### 6.6.1 Intervalli di Confidenza per le Differenze
+
+Assumiamo che esista una funzione `Confronti_multipli_da_anova()`:
+
+```{r, eval=FALSE}
+# Caricamento della funzione (se disponibile)
+source("Confronti_multipli_da_anova.R")
+
+# Confronti multipli SENZA correzione
+alpha <- 0.05
+risultati <- Confronti_multipli_da_anova(anova_polli, alpha = alpha)
+
+# Visualizzazione intervalli
+print(risultati$intervals)
+plot(risultati$plot)
+```
+
+### 6.6.2 Correzione di Bonferroni
+
+```{r, eval=FALSE}
+# Confronti multipli CON correzione di Bonferroni
+risultati_bonf <- Confronti_multipli_da_anova(anova_polli, 
+                                             alpha = alpha, 
+                                             bonferroni = TRUE)
+
+print(risultati_bonf$intervals)
+plot(risultati_bonf$plot)
+```
+
+**Cosa cambia con Bonferroni:**
+- Ogni intervallo ha livello 1 - α/m, dove m è il numero di confronti
+- Intervalli più larghi (più conservativi)
+- p-value moltiplicati per m
+- Minore probabilità di errori di tipo I (falsi positivi)
+
+---
+
+# 7. Riepilogo e Workflow Consigliato
+
+## 7.1 Analisi Univariata di una Variabile
+
+```
+1. Caricamento dati
+   ↓
+2. Analisi descrittiva (media, sd, mediana, quartili)
+   ↓
+3. Visualizzazione (istogramma, boxplot, qq-plot)
+   ↓
+4. Test di normalità (Shapiro-Wilk)
+   ↓
+5a. SE dati normali: t-test
+5b. SE dati non normali E n > 30: z-test
+5c. SE dati non normali E n < 30: test non parametrico (es. Wilcoxon)
+   ↓
+6. Intervallo di confidenza per la media
+```
+
+## 7.2 Analisi Bivariata di Due Variabili
+
+```
+1. Scatterplot e matrice di correlazione
+   ↓
+2. Test di correlazione di Pearson (se entrambe normali)
+   oppure Spearman (se dati ordinali o non normali)
+   ↓
+3. Regressione lineare (se correlazione significativa)
+```
+
+## 7.3 Confronto tra Due Gruppi Indipendenti
+
+```
+1. Statistiche descrittive per gruppo
+   ↓
+2. Visualizzazione (boxplot, dotplot)
+   ↓
+3. Test di normalità in ogni gruppo (Shapiro-Wilk)
+   ↓
+4. Test di uguaglianza varianze (Fisher o Levene)
+   ↓
+5a. SE varianze uguali: t-test standard (var.equal=TRUE)
+5b. SE varianze diverse: Welch t-test (var.equal=FALSE)
+   ↓
+6. Intervallo di confidenza per la differenza di medie
+```
+
+## 7.4 Confronto tra Più Gruppi
+
+```
+1. Statistiche descrittive per gruppo
+   ↓
+2. Visualizzazione (boxplot side-by-side)
+   ↓
+3. Test di normalità in ogni gruppo
+   ↓
+4. Test di omogeneità varianze (Bartlett o Levene)
+   ↓
+5. ANOVA one-way
+   ↓
+6a. SE p-value ANOVA > 0.05: stop, nessuna differenza
+6b. SE p-value ANOVA < 0.05: confronti multipli post-hoc
+   ↓
+7. Intervalli di confidenza e correzione Bonferroni
+```
+
+---
+
+# Appendice A: Funzioni Utili di R
+
+```{r, echo=TRUE, eval=FALSE}
+# DISTRIBUZIONI
+dnorm(x, mean, sd)       # Densità normale
+pnorm(x, mean, sd)       # Ripartizione normale
+qnorm(p, mean, sd)       # Quantile normale
+rnorm(n, mean, sd)       # Numeri casuali normali
+
+dt(x, df)                # Densità t
+pt(x, df)                # Ripartizione t
+qt(p, df)                # Quantile t
+rt(n, df)                # Numeri casuali t
+
+# TEST DI NORMALITÀ
+shapiro.test(x)          # Test di Shapiro-Wilk
+qqnorm(x); qqline(x)    # Q-Q plot
+
+# TEST SU MEDIE
+t.test(x, mu=0)         # t-test una popolazione
+t.test(x, y)            # t-test due popolazioni
+t.test(x, y, var.equal=TRUE)   # assumendo varianze uguali
+
+# ANOVA
+aov(y ~ x, data)        # ANOVA one-way
+summary(aov_object)     # Risultati ANOVA
+
+# CORRELAZIONE
+cor(x, y)               # Correlazione
+cor.test(x, y)          # Test di correlazione
+
+# TEST UGUAGLIANZA VARIANZE
+var.test(x, y)          # Test di Fisher
+bartlett.test(y ~ x)    # Test di Bartlett
+
+# VISUALIZZAZIONE
+plot(x, y)              # Scatterplot
+hist(x)                 # Istogramma
+boxplot(x ~ group)      # Boxplot per gruppo
+```
+
+---
+
+# Riferimenti e Risorse
+
+- **R Documentation**: https://cran.r-project.org/
+- **ggplot2**: Hadley Wickham - Elegant Graphics for Data Analysis
+- **Statistical Rethinking**: Richard McElreath
+- **An Introduction to Statistical Learning**: James, Witten, Hastie, Tibshirani
+
+---
+
+**Data di creazione**: `r Sys.Date()`
+**Versione**: 1.0
