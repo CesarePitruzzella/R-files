@@ -1,0 +1,34 @@
+# Guida Completa per l’Utilizzo di R
+
+## Introduzione
+Questo documento fornisce una guida approfondita all'uso di R per l’analisi dei dati. Viene fornita una spiegazione dettagliata del codice presente nei seguenti file: `2.0_Distribuzioni.txt`, `2.1_Esplorazione_Multivariata_Test_Base.txt` e `2.2_ANOVA.txt`.
+
+## 1. Distribuzioni
+### Scrivere il Codice
+In questa sezione, spiegheremo come utilizzare le funzioni di R per analizzare le distribuzioni. Utilizzeremo le funzioni `hist()`, `density()`, e `boxplot()`.
+
+### Interpretazione degli Output
+Quando esegui il codice per la generazione di un istogramma, l'output ti mostrerà la distribuzione dei tuoi dati...
+
+### Leggere i Risultati
+Fai attenzione ai picchi e alle scelte di intervallo nel tuo istogramma. Questi possono influenzare la comprensione delle tue distribuzioni...
+
+## 2. Esplorazione Multivariata
+### Scrivere il Codice
+Utilizzeremo funzioni come `lm()`, `cor()` e `pairs()` per analisi multivariata...
+
+### Interpretazione degli Output
+Quando utilizzi `lm()`, troverai stime dei coefficienti, errori standard e valori p...
+
+### Leggere i Risultati
+Interpreta i risultati del modello per capire quali variabili influenzano il tuo outcome...
+
+## 3. ANOVA
+### Scrivere il Codice
+Per eseguire ANOVA, utilizza la funzione `aov()`...
+
+### Interpretazione degli Output
+L'output di ANOVA include valori F e p per testare l'ipotesi nulla...
+
+### Leggere i Risultati
+Analizza i risultati per decidere se accettare o rifiutare l'ipotesi nulla...
